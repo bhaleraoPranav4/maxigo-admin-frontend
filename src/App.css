@@ -1,0 +1,614 @@
+/* =========================================================
+   MAXIGO ADMIN PANEL - APP CSS
+   ========================================================= */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --primary: #6632f4;
+  --primary-dark: #5425d8;
+  --primary-light: #efeaff;
+
+  --gradient: linear-gradient(135deg, #6632f4, #843ce8);
+
+  --sidebar-bg: #ffffff;
+  --page-bg: #f7f5ff;
+  --card-bg: #ffffff;
+
+  --text-dark: #18213a;
+  --text-muted: #718096;
+  --text-light: #9aa4b2;
+
+  --border: #e8e3f4;
+  --border-light: #f0edf7;
+
+  --success: #1f9d61;
+  --success-bg: #e8f9f0;
+
+  --danger: #d84057;
+  --danger-bg: #ffe8eb;
+
+  --warning: #b77905;
+  --warning-bg: #fff4da;
+
+  --info: #3574d2;
+  --info-bg: #e7f1ff;
+
+  --sidebar-width: 255px;
+  --sidebar-collapsed-width: 75px;
+
+  --shadow: 0 8px 25px rgba(41, 28, 83, 0.06);
+}
+
+/* =========================================================
+   BODY
+   ========================================================= */
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+
+  background: var(--page-bg);
+  color: var(--text-dark);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* =========================================================
+   MAIN ADMIN LAYOUT
+   ========================================================= */
+
+.admin-layout {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  background: var(--page-bg);
+}
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+
+.admin-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+
+  width: var(--sidebar-width);
+  height: 100vh;
+
+  display: flex;
+  flex-direction: column;
+
+  background: var(--sidebar-bg);
+
+  border-right: 1px solid var(--border);
+
+  box-shadow:
+    4px 0 18px rgba(43, 31, 91, 0.04);
+
+  z-index: 1000;
+
+  overflow: hidden;
+}
+
+/* =========================================================
+   LOGO SECTION
+   ========================================================= */
+
+.admin-logo-section {
+  height: 95px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 12px 18px;
+
+  border-bottom: 1px solid var(--border-light);
+
+  background: #ffffff;
+}
+
+.admin-logo {
+  width: 195px;
+  height: 65px;
+
+  object-fit: contain;
+  object-position: center;
+
+  display: block;
+}
+
+/* =========================================================
+   MENU
+   ========================================================= */
+
+.admin-menu {
+  flex: 1;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+
+  padding: 18px 13px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+
+.admin-menu::-webkit-scrollbar {
+  width: 5px;
+}
+
+.admin-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-menu::-webkit-scrollbar-thumb {
+  background: #ddd8ed;
+  border-radius: 10px;
+}
+
+/* Firefox */
+
+.admin-menu {
+  scrollbar-width: thin;
+  scrollbar-color: #ddd8ed transparent;
+}
+
+/* =========================================================
+   MENU ITEM
+   ========================================================= */
+
+.admin-menu-item {
+  position: relative;
+
+  width: 100%;
+  min-height: 48px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 13px;
+
+  padding: 0 15px;
+
+  border: 0;
+  border-radius: 11px;
+
+  background: transparent;
+
+  color: var(--text-muted);
+
+  font-size: 13px;
+  font-weight: 650;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+/* Icon */
+
+.menu-icon {
+  width: 23px;
+  min-width: 23px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 17px;
+
+  transition:
+    transform 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Text */
+
+.menu-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hover */
+
+.admin-menu-item:hover {
+  background: #f6f3ff;
+  color: var(--primary);
+}
+
+.admin-menu-item:hover .menu-icon {
+  transform: scale(1.08);
+}
+
+/* Active */
+
+.admin-menu-item.active {
+  color: #ffffff;
+
+  background: var(--gradient);
+
+  box-shadow:
+    0 8px 18px rgba(102, 50, 244, 0.20);
+}
+
+.admin-menu-item.active::before {
+  content: "";
+
+  position: absolute;
+
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+
+  width: 3px;
+
+  border-radius: 0 5px 5px 0;
+
+  background: rgba(255, 255, 255, 0.95);
+}
+
+/* =========================================================
+   SIDEBAR BOTTOM
+   ========================================================= */
+
+.admin-sidebar-bottom {
+  padding: 13px;
+
+  border-top: 1px solid var(--border-light);
+
+  background: #ffffff;
+}
+
+/* =========================================================
+   LOGOUT
+   ========================================================= */
+
+.admin-logout {
+  width: 100%;
+  min-height: 47px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 13px;
+
+  padding: 0 15px;
+
+  border: 1px solid #eee9f7;
+  border-radius: 11px;
+
+  background: #ffffff;
+
+  color: #6e7789;
+
+  font-size: 13px;
+  font-weight: 650;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.admin-logout:hover {
+  color: var(--danger);
+  background: #fff7f8;
+  border-color: #f2dce0;
+
+  transform: translateY(-1px);
+}
+
+.admin-logout .menu-icon {
+  color: inherit;
+}
+
+/* =========================================================
+   MAIN CONTENT AREA
+   ========================================================= */
+
+.admin-main {
+  width: calc(100% - var(--sidebar-width));
+  min-height: 100vh;
+
+  margin-left: var(--sidebar-width);
+
+  background: var(--page-bg);
+
+  overflow-x: hidden;
+}
+
+/* =========================================================
+   GLOBAL BUTTON RESET
+   ========================================================= */
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* =========================================================
+   GLOBAL INPUT
+   ========================================================= */
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible {
+  outline: 2px solid rgba(102, 50, 244, 0.16);
+  outline-offset: 1px;
+}
+
+/* =========================================================
+   GLOBAL LINKS
+   ========================================================= */
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* =========================================================
+   SELECTION
+   ========================================================= */
+
+::selection {
+  background: #ddd2ff;
+  color: #2b2050;
+}
+
+/* =========================================================
+   RESPONSIVE - TABLET
+   ========================================================= */
+
+@media (max-width: 1100px) {
+  :root {
+    --sidebar-width: 225px;
+  }
+
+  .admin-logo-section {
+    height: 88px;
+    padding: 10px 14px;
+  }
+
+  .admin-logo {
+    width: 175px;
+    height: 60px;
+  }
+
+  .admin-menu {
+    padding: 15px 10px;
+  }
+
+  .admin-menu-item,
+  .admin-logout {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* =========================================================
+   RESPONSIVE - MOBILE
+   ========================================================= */
+
+@media (max-width: 760px) {
+  .admin-sidebar {
+    width: 78px;
+  }
+
+  .admin-main {
+    width: calc(100% - 78px);
+    margin-left: 78px;
+  }
+
+  /* Logo */
+
+  .admin-logo-section {
+    height: 80px;
+
+    padding: 10px 7px;
+  }
+
+  .admin-logo {
+    width: 64px;
+    height: 54px;
+
+    object-fit: contain;
+  }
+
+  /* Menu */
+
+  .admin-menu {
+    padding: 14px 8px;
+    gap: 6px;
+  }
+
+  .admin-menu-item {
+    min-height: 46px;
+
+    justify-content: center;
+
+    padding: 0 5px;
+
+    border-radius: 10px;
+  }
+
+  .admin-menu-item.active::before {
+    display: none;
+  }
+
+  .menu-icon {
+    width: 25px;
+    min-width: 25px;
+    font-size: 17px;
+  }
+
+  .menu-text {
+    display: none;
+  }
+
+  /* Logout */
+
+  .admin-sidebar-bottom {
+    padding: 10px 8px;
+  }
+
+  .admin-logout {
+    min-height: 46px;
+
+    justify-content: center;
+
+    padding: 0 5px;
+
+    border-radius: 10px;
+  }
+
+  .admin-logout .menu-text {
+    display: none;
+  }
+}
+
+/* =========================================================
+   VERY SMALL MOBILE
+   ========================================================= */
+
+@media (max-width: 420px) {
+  .admin-sidebar {
+    width: 68px;
+  }
+
+  .admin-main {
+    width: calc(100% - 68px);
+    margin-left: 68px;
+  }
+
+  .admin-logo-section {
+    height: 75px;
+    padding: 8px 4px;
+  }
+
+  .admin-logo {
+    width: 57px;
+    height: 50px;
+  }
+
+  .admin-menu {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .admin-menu-item {
+    min-height: 43px;
+  }
+
+  .admin-sidebar-bottom {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+}
+
+/* =========================================================
+   PRINT
+   ========================================================= */
+
+@media print {
+  .admin-sidebar {
+    display: none;
+  }
+
+  .admin-main {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .admin-layout {
+    background: #ffffff;
+  }
+}
+
+
+/* =========================================================
+   MAXIGO ADMIN LOGO - EXTRA LARGE
+========================================================= */
+
+.admin-logo-section {
+  height: 120px !important;
+  padding: 10px 12px !important;
+}
+
+.admin-logo {
+  width: 240px !important;
+  height: 95px !important;
+  max-width: none !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  display: block !important;
+}
+
+/* Tablet */
+@media (max-width: 1100px) {
+  .admin-logo-section {
+    height: 110px !important;
+  }
+
+  .admin-logo {
+    width: 215px !important;
+    height: 85px !important;
+  }
+}
+
+/* Mobile */
+@media (max-width: 760px) {
+  .admin-logo-section {
+    height: 95px !important;
+  }
+
+  .admin-logo {
+    width: 72px !important;
+    height: 72px !important;
+  }
+}

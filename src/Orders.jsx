@@ -1,6 +1,7 @@
 import React, {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -29,78 +30,48 @@ const statusOptions = [
   "Cancelled",
 ];
 
-function displayStatus(
-  raw
-) {
-  const s =
-    String(
-      raw || ""
-    ).toUpperCase();
+function displayStatus(raw) {
+  const s = String(raw || "").toUpperCase();
 
-  if (
-    s === "ASSIGNED"
-  ) {
+  if (s === "ASSIGNED") {
     return "Rider Assigned";
   }
 
-  if (
-    s ===
-    "READY_FOR_PICKUP"
-  ) {
+  if (s === "READY_FOR_PICKUP") {
     return "Ready for Pickup";
   }
 
-  if (
-    s === "PICKED_UP"
-  ) {
+  if (s === "PICKED_UP") {
     return "Picked Up";
   }
 
-  if (
-    s ===
-    "OUT_FOR_DELIVERY"
-  ) {
+  if (s === "OUT_FOR_DELIVERY") {
     return "Out for Delivery";
   }
 
-  return humanizeStatus(
-    s
-  );
+  return humanizeStatus(s);
 }
 
-function orderStatusClass(
-  status
-) {
-  const s =
-    String(
-      status || ""
-    )
-      .toLowerCase()
-      .replaceAll(
-        " ",
-        "-"
-      );
+function orderStatusClass(status) {
+  const s = String(status || "")
+    .toLowerCase()
+    .replaceAll(" ", "-");
 
   if (
     s === "accepted" ||
     s === "preparing" ||
-    s ===
-      "ready-for-pickup"
+    s === "ready-for-pickup"
   ) {
     return "preparing";
   }
 
-  if (
-    s ===
-    "rider-assigned"
-  ) {
+  if (s === "rider-assigned") {
     return "rider-assigned";
   }
 
   if (
     s === "picked-up" ||
-    s ===
-      "out-for-delivery"
+    s === "out-for-delivery"
   ) {
     return "out-for-delivery";
   }
@@ -109,337 +80,380 @@ function orderStatusClass(
 }
 
 function Orders() {
-  const [
-    orders,
-    setOrders,
-  ] = useState([]);
+  const [orders, setOrders] = useState([]);
 
-  const [
-    assignments,
-    setAssignments,
-  ] = useState([]);
+  // New order notification tracking
+  const previousOrderIdsRef = useRef(new Set());
+  const firstOrderLoadRef = useRef(true);
 
-  const [
-    search,
-    setSearch,
-  ] = useState("");
+  const [assignments, setAssignments] = useState([]);
 
-  const [
-    status,
-    setStatus,
-  ] = useState(
-    "All"
-  );
+  const [search, setSearch] = useState("");
 
-  const [
-    selectedOrder,
-    setSelectedOrder,
-  ] = useState(
-    null
-  );
+  const [status, setStatus] = useState("All");
 
-  const [
-    loading,
-    setLoading,
-  ] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
-  const [
-    error,
-    setError,
-  ] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const load =
-    async () => {
-      setLoading(
-        true
+  const [error, setError] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+
+    try {
+      const [orderData, assignmentData] =
+        await Promise.all([
+          getAdminOrders(),
+          getAdminAssignments(),
+        ]);
+
+      setOrders(toArray(orderData));
+
+      setAssignments(
+        toArray(assignmentData)
       );
+    } catch (e) {
+      setError(
+        e.message ||
+          "Unable to load orders."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  /*
+   * NEW ORDER POLLING + SOUND
+   *
+   * Every 5 seconds Admin API is checked.
+   * If a new PLACED order is found,
+   * notification.mp3 is played.
+   */
+  useEffect(() => {
+    let timer;
+
+    const checkNewOrders = async () => {
       try {
-        const [
-          orderData,
-          assignmentData,
-        ] =
-          await Promise.all(
-            [
-              getAdminOrders(),
-              getAdminAssignments(),
-            ]
+        const orderData = await getAdminOrders();
+
+        const latestOrders =
+          toArray(orderData);
+
+        const currentIds = new Set(
+          latestOrders
+            .map((order) => order?.id)
+            .filter((id) => id != null)
+            .map(String)
+        );
+
+        /*
+         * First load:
+         * Existing orders should NOT play sound.
+         */
+        if (firstOrderLoadRef.current) {
+          previousOrderIdsRef.current =
+            currentIds;
+
+          firstOrderLoadRef.current =
+            false;
+
+          setOrders(latestOrders);
+
+          return;
+        }
+
+        /*
+         * Find newly created PLACED orders.
+         */
+        const newOrders =
+          latestOrders.filter(
+            (order) => {
+              const id = order?.id;
+
+              return (
+                id != null &&
+                !previousOrderIdsRef.current.has(
+                  String(id)
+                ) &&
+                String(
+                  order?.orderStatus || ""
+                ).toUpperCase() ===
+                  "PLACED"
+              );
+            }
           );
 
-        setOrders(
-          toArray(
-            orderData
-          )
-        );
+        /*
+         * Play notification sound.
+         */
+        if (newOrders.length > 0) {
+          const audio =
+            new Audio(
+              "/notification.mp3"
+            );
 
-        setAssignments(
-          toArray(
-            assignmentData
-          )
-        );
-      } catch (e) {
-        setError(
-          e.message ||
-          "Unable to load orders."
-        );
-      } finally {
-        setLoading(
-          false
+          audio.volume = 1.0;
+
+          audio.play().catch(
+            (error) => {
+              console.log(
+                "Notification sound blocked:",
+                error
+              );
+            }
+          );
+        }
+
+        previousOrderIdsRef.current =
+          currentIds;
+
+        setOrders(latestOrders);
+      } catch (error) {
+        console.error(
+          "New order check failed:",
+          error
         );
       }
     };
 
-  useEffect(() => {
+    /*
+     * Initial load.
+     */
     load();
+
+    /*
+     * Check every 5 seconds.
+     */
+    timer = setInterval(
+      checkNewOrders,
+      5000
+    );
+
+    /*
+     * Cleanup timer.
+     */
+    return () => {
+      clearInterval(timer);
+    };
   }, []);
 
-  const assignmentMap =
-    useMemo(() => {
-      const map =
-        new Map();
+  const assignmentMap = useMemo(
+    () => {
+      const map = new Map();
 
-      assignments.forEach(
-        (a) => {
-          if (
-            a.orderId !=
-            null
-          ) {
-            map.set(
-              String(
-                a.orderId
-              ),
-              a
-            );
-          }
+      assignments.forEach((a) => {
+        if (a.orderId != null) {
+          map.set(
+            String(a.orderId),
+            a
+          );
         }
-      );
+      });
 
       return map;
-    }, [
-      assignments,
-    ]);
+    },
+    [assignments]
+  );
 
-  const normalized =
-    useMemo(
-      () =>
-        orders.map(
-          (o) => {
-            const assignment =
-              assignmentMap.get(
-                String(
-                  o.id
-                )
-              );
+  const normalized = useMemo(
+    () =>
+      orders.map((o) => {
+        const assignment =
+          assignmentMap.get(
+            String(o.id)
+          );
 
-            const dt =
-              formatDateTime(
-                o.placedAt
-              );
+        const dt =
+          formatDateTime(
+            o.placedAt
+          );
 
-            const rider =
-              assignment?.riderName ||
-              "Not Assigned";
+        const rider =
+          assignment?.riderName ||
+          "Not Assigned";
 
-            return {
-              ...o,
+        return {
+          ...o,
 
-              id:
-                o.orderNumber
-                  ? `#${o.orderNumber}`
-                  : `#${o.id}`,
+          id: o.orderNumber
+            ? `#${o.orderNumber}`
+            : `#${o.id}`,
 
-              rawId:
-                o.id,
+          rawId: o.id,
 
-              customer:
-                o.customerName ||
-                "Unknown Customer",
+          customer:
+            o.customerName ||
+            "Unknown Customer",
 
-              mobile:
-                o.customerMobile ||
-                "—",
+          mobile:
+            o.customerMobile ||
+            "—",
 
-              store:
-                o.storeName ||
-                "—",
+          store:
+            o.storeName ||
+            "—",
 
-              rider,
+          rider,
 
-              amount:
-                Number(
-                  o.totalAmount ||
-                  0
-                ),
+          amount: Number(
+            o.totalAmount || 0
+          ),
 
-              payment:
-                humanizeStatus(
-                  o.paymentMethod
-                ),
+          payment:
+            humanizeStatus(
+              o.paymentMethod
+            ),
 
-              status:
-                displayStatus(
-                  o.orderStatus
-                ),
+          status:
+            displayStatus(
+              o.orderStatus
+            ),
 
-              statusClass:
-                orderStatusClass(
-                  displayStatus(
-                    o.orderStatus
-                  )
-                ),
-
-              date:
-                dt.date,
-
-              time:
-                dt.time,
-
-              delivery: [
-                o.deliveryHouseNo,
-                o.deliveryArea,
-                o.deliveryLandmark,
-                o.deliveryCity,
-                o.deliveryState,
-                o.deliveryPincode,
-              ]
-                .filter(Boolean)
-                .join(", ") ||
-                "—",
-            };
-          }
-        ),
-      [
-        orders,
-        assignmentMap,
-      ]
-    );
-
-  const filteredOrders =
-    useMemo(
-      () => {
-        const q =
-          search
-            .trim()
-            .toLowerCase();
-
-        return normalized.filter(
-          (order) => {
-            const matchesSearch =
-              !q ||
-              [
-                order.id,
-                order.customer,
-                order.store,
-                order.rider,
-                order.mobile,
-              ].some(
-                (v) =>
-                  String(v)
-                    .toLowerCase()
-                    .includes(
-                      q
-                    )
-              );
-
-            return (
-              matchesSearch &&
-              (
-                status ===
-                  "All" ||
-                order.status ===
-                  status
+          statusClass:
+            orderStatusClass(
+              displayStatus(
+                o.orderStatus
               )
-            );
-          }
-        );
-      },
-      [
-        normalized,
-        search,
-        status,
-      ]
-    );
+            ),
 
-  const totals =
-    useMemo(
-      () => ({
-        all:
-          normalized.length,
+          date: dt.date,
 
-        placed:
-          normalized.filter(
-            (o) =>
-              o.status ===
-              "Placed"
-          ).length,
+          time: dt.time,
 
-        preparing:
-          normalized.filter(
-            (o) =>
-              o.status ===
-              "Preparing"
-          ).length,
-
-        riderAssigned:
-          normalized.filter(
-            (o) =>
-              o.status ===
-              "Rider Assigned"
-          ).length,
-
-        outForDelivery:
-          normalized.filter(
-            (o) =>
-              o.status ===
-              "Out for Delivery"
-          ).length,
-
-        delivered:
-          normalized.filter(
-            (o) =>
-              o.status ===
-              "Delivered"
-          ).length,
+          delivery: [
+            o.deliveryHouseNo,
+            o.deliveryArea,
+            o.deliveryLandmark,
+            o.deliveryCity,
+            o.deliveryState,
+            o.deliveryPincode,
+          ]
+            .filter(Boolean)
+            .join(", ") || "—",
+        };
       }),
-      [normalized]
-    );
+    [
+      orders,
+      assignmentMap,
+    ]
+  );
 
-  const openOrder =
-    async (
-      order
-    ) => {
-      try {
-        const fresh =
-          await getAdminOrder(
-            order.rawId
+  const filteredOrders = useMemo(
+    () => {
+      const q = search
+        .trim()
+        .toLowerCase();
+
+      return normalized.filter(
+        (order) => {
+          const matchesSearch =
+            !q ||
+            [
+              order.id,
+              order.customer,
+              order.store,
+              order.rider,
+              order.mobile,
+            ].some((v) =>
+              String(v)
+                .toLowerCase()
+                .includes(q)
+            );
+
+          return (
+            matchesSearch &&
+            (
+              status === "All" ||
+              order.status ===
+                status
+            )
           );
+        }
+      );
+    },
+    [
+      normalized,
+      search,
+      status,
+    ]
+  );
 
-        const match =
-          normalized.find(
-            (x) =>
-              x.rawId ===
-              order.rawId
-          );
+  const totals = useMemo(
+    () => ({
+      all: normalized.length,
 
-        setSelectedOrder({
-          ...(match ||
-            order),
+      placed:
+        normalized.filter(
+          (o) =>
+            o.status ===
+            "Placed"
+        ).length,
 
-          ...order,
+      preparing:
+        normalized.filter(
+          (o) =>
+            o.status ===
+            "Preparing"
+        ).length,
 
-          ...fresh,
+      riderAssigned:
+        normalized.filter(
+          (o) =>
+            o.status ===
+            "Rider Assigned"
+        ).length,
 
-          id:
-            fresh.orderNumber
-              ? `#${fresh.orderNumber}`
-              : order.id,
-        });
-      } catch {
-        setSelectedOrder(
-          order
+      outForDelivery:
+        normalized.filter(
+          (o) =>
+            o.status ===
+            "Out for Delivery"
+        ).length,
+
+      delivered:
+        normalized.filter(
+          (o) =>
+            o.status ===
+            "Delivered"
+        ).length,
+    }),
+    [normalized]
+  );
+
+  const openOrder = async (
+    order
+  ) => {
+    try {
+      const fresh =
+        await getAdminOrder(
+          order.rawId
         );
-      }
-    };
+
+      const match =
+        normalized.find(
+          (x) =>
+            x.rawId ===
+            order.rawId
+        );
+
+      setSelectedOrder({
+        ...(match || order),
+
+        ...order,
+
+        ...fresh,
+
+        id: fresh.orderNumber
+          ? `#${fresh.orderNumber}`
+          : order.id,
+      });
+    } catch {
+      setSelectedOrder(
+        order
+      );
+    }
+  };
 
   if (loading) {
     return (
@@ -464,9 +478,7 @@ function Orders() {
               marginTop: 8,
             }}
           >
-            {
-              error
-            }
+            {error}
           </p>
         </div>
       </section>
@@ -570,36 +582,27 @@ function Orders() {
               key={key}
               type="button"
               className={`orders-summary-card ${
-                status ===
-                key
+                status === key
                   ? "selected"
                   : ""
               }`}
               onClick={() =>
-                setStatus(
-                  key
-                )
+                setStatus(key)
               }
             >
               <span
                 className={`summary-icon ${type}`}
               >
-                {
-                  icon
-                }
+                {icon}
               </span>
 
               <div>
                 <small>
-                  {
-                    label
-                  }
+                  {label}
                 </small>
 
                 <strong>
-                  {
-                    value
-                  }
+                  {value}
                 </strong>
               </div>
             </button>
@@ -611,6 +614,7 @@ function Orders() {
       <div className="orders-filter-card">
 
         <div className="orders-search">
+
           <span>
             ⌕
           </span>
@@ -630,15 +634,14 @@ function Orders() {
             <button
               type="button"
               onClick={() =>
-                setSearch(
-                  ""
-                )
+                setSearch("")
               }
               aria-label="Clear search"
             >
               ✕
             </button>
           )}
+
         </div>
 
         <select
@@ -719,6 +722,7 @@ function Orders() {
 
             <thead>
               <tr>
+
                 <th>
                   Order
                 </th>
@@ -752,6 +756,7 @@ function Orders() {
                 </th>
 
                 <th />
+
               </tr>
             </thead>
 
@@ -766,6 +771,7 @@ function Orders() {
                   >
 
                     <td>
+
                       <button
                         type="button"
                         className="order-id-btn"
@@ -779,9 +785,11 @@ function Orders() {
                           order.id
                         }
                       </button>
+
                     </td>
 
                     <td>
+
                       <div className="customer-cell">
 
                         <span>
@@ -793,6 +801,7 @@ function Orders() {
                         </span>
 
                         <div>
+
                           <strong>
                             {
                               order.customer
@@ -804,9 +813,11 @@ function Orders() {
                               order.mobile
                             }
                           </small>
+
                         </div>
 
                       </div>
+
                     </td>
 
                     <td>
@@ -816,6 +827,7 @@ function Orders() {
                     </td>
 
                     <td>
+
                       {
                         order.rider ===
                         "Not Assigned"
@@ -826,9 +838,11 @@ function Orders() {
                           )
                           : order.rider
                       }
+
                     </td>
 
                     <td>
+
                       <strong>
                         {
                           formatMoney(
@@ -836,30 +850,35 @@ function Orders() {
                           )
                         }
                       </strong>
+
                     </td>
 
                     <td>
+
                       <span className="payment-pill">
                         {
                           order.payment
                         }
                       </span>
+
                     </td>
 
                     <td>
+
                       <span
-                        className={`order-status ${
-                          order.statusClass
-                        }`}
+                        className={`order-status ${order.statusClass}`}
                       >
                         {
                           order.status
                         }
                       </span>
+
                     </td>
 
                     <td>
+
                       <div className="time-cell">
+
                         <strong>
                           {
                             order.time
@@ -871,10 +890,13 @@ function Orders() {
                             order.date
                           }
                         </small>
+
                       </div>
+
                     </td>
 
                     <td>
+
                       <button
                         type="button"
                         className="view-order-btn"
@@ -886,6 +908,7 @@ function Orders() {
                       >
                         View
                       </button>
+
                     </td>
 
                   </tr>
@@ -895,9 +918,11 @@ function Orders() {
               {filteredOrders.length ===
                 0 && (
                 <tr>
+
                   <td colSpan="9">
 
                     <div className="orders-no-result">
+
                       <div>
                         🔍
                       </div>
@@ -909,9 +934,11 @@ function Orders() {
                       <p>
                         Try another search or status filter.
                       </p>
+
                     </div>
 
                   </td>
+
                 </tr>
               )}
 
@@ -924,6 +951,7 @@ function Orders() {
       </div>
 
       {selectedOrder && (
+
         <div
           className="order-modal-backdrop"
           onClick={() =>
@@ -943,6 +971,7 @@ function Orders() {
             <div className="order-modal-head">
 
               <div>
+
                 <span>
                   Order Details
                 </span>
@@ -952,6 +981,7 @@ function Orders() {
                     selectedOrder.id
                   }
                 </h2>
+
               </div>
 
               <button
@@ -988,6 +1018,7 @@ function Orders() {
             <div className="order-detail-grid">
 
               <div>
+
                 <small>
                   Customer
                 </small>
@@ -999,9 +1030,11 @@ function Orders() {
                     "—"
                   }
                 </strong>
+
               </div>
 
               <div>
+
                 <small>
                   Mobile
                 </small>
@@ -1013,9 +1046,11 @@ function Orders() {
                     "—"
                   }
                 </strong>
+
               </div>
 
               <div>
+
                 <small>
                   Store
                 </small>
@@ -1027,9 +1062,11 @@ function Orders() {
                     "—"
                   }
                 </strong>
+
               </div>
 
               <div>
+
                 <small>
                   Rider
                 </small>
@@ -1045,9 +1082,11 @@ function Orders() {
                     "Not Assigned"
                   }
                 </strong>
+
               </div>
 
               <div>
+
                 <small>
                   Payment
                 </small>
@@ -1059,9 +1098,11 @@ function Orders() {
                     )
                   }
                 </strong>
+
               </div>
 
               <div>
+
                 <small>
                   Amount
                 </small>
@@ -1074,6 +1115,7 @@ function Orders() {
                     )
                   }
                 </strong>
+
               </div>
 
               <div className="full-width-detail">
@@ -1120,6 +1162,7 @@ function Orders() {
           </div>
 
         </div>
+
       )}
 
     </section>
